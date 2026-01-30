@@ -3,6 +3,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 // 1. AGREGAR SERVICIO CORS
+
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PermitirReact",
@@ -14,6 +16,18 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("PermitirTodo",
+        policy =>
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        });
+});
+
+
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -22,6 +36,7 @@ var app = builder.Build();
 
 // 2. USAR LA POLÍTICA CORS
 app.UseCors("PermitirReact");
+app.UseCors("PermitirTodo");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
