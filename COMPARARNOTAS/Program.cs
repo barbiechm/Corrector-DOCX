@@ -5,6 +5,17 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. AGREGAR SERVICIO CORS
 
 
+
+
+// LIMPIAR CONFIGURACIÓN POR DEFECTO Y AGREGARLA SIN RELOAD
+builder.Configuration.Sources.Clear();
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false) // <--- FALSE AQUÍ
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables();
+
+// ... resto de tu código ...
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("PermitirReact",
