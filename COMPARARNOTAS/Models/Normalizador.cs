@@ -4,120 +4,130 @@ using System.Text.RegularExpressions;
 
 public static class Normalizador
 {
-    // SINÓNIMOS (Reglas de negocio)
+    // Diccionario SIN duplicados
     private static readonly Dictionary<string, string> _sinonimos = new Dictionary<string, string>
     {
-        { "pasado", "preterito" },
-        { "fut", "futuro" },
-        { "sustantivo", "nombre" },
-        { "fem", "femenino" },
-        { "masc", "masculino" },
-        { "sing", "singular" },
-        { "plur", "plural" },
-        { "activa", "activo" },
-        { "pasiva", "pasivo" },
-        { "indic", "indicativo" },
-        { "subj", "subjuntivo" },
-        { "perf", "perfectivo" },
-        { "imperf", "imperfectivo" },
-        { "1", "primera" },
-        { "2", "segunda" },
-        { "3", "tercera" }
+        // Tiempos verbales
+        { "pasado", "preterito" }, { "pret", "preterito" },
+        { "fut", "futuro" }, { "futur", "futuro" },
+        { "pres", "presente" }, { "copret", "copreterito" },
+        { "imperf", "imperfecto" }, { "perf", "perfecto" },
+        
+        // Categorías gramaticales
+        { "sustantivo", "nombre" }, { "sust", "nombre" },
+        { "adj", "adjetivo" }, { "v", "verbo" },
+        { "adv", "adverbio" }, { "prep", "preposicion" },
+        { "art", "articulo" }, { "pron", "pronombre" },
+        
+        // Género y Número
+        { "fem", "femenino" }, { "f", "femenino" },
+        { "masc", "masculino" }, { "m", "masculino" },
+        { "sing", "singular" }, { "s", "singular" },
+        { "plur", "plural" }, { "pl", "plural" },
+        
+        // Voz y Modo
+        { "activa", "activo" }, { "act", "activo" },
+        { "pasiva", "pasivo" }, { "pas", "pasivo" },
+        { "indic", "indicativo" }, { "ind", "indicativo" },
+        { "subj", "subjuntivo" }, { "sub", "subjuntivo" },
+        { "imper", "imperativo" }, { "imp", "imperativo" },
+        
+        // Personas
+        { "1", "primera" }, { "1a", "primera" }, { "1era", "primera" },
+        { "2", "segunda" }, { "2a", "segunda" }, { "2da", "segunda" },
+        { "3", "tercera" }, { "3a", "tercera" }, { "3ra", "tercera" },
+        
+        // Tipos específicos
+        { "det", "determinado" }, { "indet", "indeterminado" },
+        { "definido", "determinado" }, { "indefinido", "indeterminado" },
+        { "demos", "demostrativo" }, { "comun", "comun" },
+        { "incontable", "incontable" }, { "reciproco", "reciproco" },
+        { "atono", "atono" }, { "tonico", "tonico" },
+
+        // Palabras técnicas que queremos normalizar para que coincidan
+        { "intransitivo", "intransitivo" }, { "transitivo", "transitivo" },
+        { "derivado", "derivado" }, { "primitivo", "primitivo" },
+        { "simple", "simple" }, { "compuesto", "compuesto" }
     };
 
-    // PALABRAS QUE NO SUMAN PUNTOS (Para el método antiguo, si lo usas)
-    private static readonly HashSet<string> _palabrasIgnoradas = new HashSet<string>
+    // Palabras que NO aportan valor (Etiquetas y basura)
+    private static readonly HashSet<string> _stopWords = new HashSet<string>
     {
-        "tiempo", "modo", "aspecto", "persona", "numero", "número", "tipo", "clase",
-        "genero", "género", "voz", "grado", "conjugacion", "conjugación",
-        "vocal", "tematica", "temática", "significado", "estructura", "forma", "flexion", "flexión",
-        "de", "del", "el", "la", "los", "las", "un", "una", "unos", "unas",
-        "y", "o", "u", "e", "es", "son", ":", ",", ".", ";", "-", "\"", "'"
+        // Artículos y preposiciones
+        "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas",
+        "en", "a", "al", "o", "y", "u", "e", "con", "sin", "por", "para",
+        "es", "son", "fue", "fueron", "era", "eran", "se", "que", "cual",
+        "muy", "mas", "menos",
+
+        // Etiquetas Estructurales (Ignorar "Persona:", "Número:", etc.)
+        "persona", "numero", "tiempo", "aspecto", "modo",
+        "tipo", "clase", "forma", "conjugacion", "vocal", "tematica",
+        "voz", "flexion", "significado", "estructura",
+        "palabra", "valor", "genero", "funcion", "grado",
+        
+        // Ignorar también la palabra "punto" o "puntos" si se escapó del regex
+        "punto", "puntos"
     };
 
-    // --- MÉTODO ANTIGUO (PALABRA POR PALABRA) ---
-    public static List<string> ObtenerTokens(string texto)
+    public static List<string> ExtraerConceptosLinguisticos(string texto)
     {
         if (string.IsNullOrWhiteSpace(texto)) return new List<string>();
 
-        var limpio = System.Net.WebUtility.HtmlDecode(texto).ToLowerInvariant().Trim();
-        limpio = QuitarTildes(limpio);
-        limpio = Regex.Replace(limpio, @"[^\w]", " ");
-
-        var partes = limpio.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        var tokens = new List<string>();
-
-        foreach (var parte in partes)
+        try
         {
-            var p = parte.Trim();
-            var palabraFinal = _sinonimos.ContainsKey(p) ? _sinonimos[p] : p;
-            if (!_palabrasIgnoradas.Contains(palabraFinal))
+            // 1. Limpiar etiquetas de puntos (Ej: "[1punto]" -> " ")
+            string textoSinPuntos = Regex.Replace(texto, @"\[\d+\s*puntos?\]", " ", RegexOptions.IgnoreCase);
+
+            // 2. Decodificar HTML y minusculas (USANDO textoSinPuntos ✅)
+            var limpio = System.Net.WebUtility.HtmlDecode(textoSinPuntos).ToLowerInvariant();
+
+            // 3. Quitar tildes
+            limpio = QuitarTildes(limpio);
+
+            // 4. Quitar caracteres especiales (dejar solo letras y números)
+            limpio = Regex.Replace(limpio, @"[^\w\s]", " ");
+
+            // 5. Dividir en palabras
+            var palabras = limpio.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+            // 6. Normalizar y Filtrar
+            // Usamos List<string> para permitir palabras repetidas si el profe lo pide así
+            var conceptos = new List<string>();
+
+            foreach (var palabra in palabras)
             {
-                tokens.Add(palabraFinal);
+                if (string.IsNullOrWhiteSpace(palabra) || _stopWords.Contains(palabra))
+                    continue;
+
+                // Aplicar sinónimo si existe
+                var concepto = _sinonimos.TryGetValue(palabra, out var sinonimo) ? sinonimo : palabra;
+                conceptos.Add(concepto);
             }
+
+            // Ordenamos para que la comparación visual sea más fácil
+            return conceptos.OrderBy(c => c).ToList();
         }
-        return tokens;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error Normalizador: {ex.Message}");
+            return new List<string>();
+        }
     }
 
     private static string QuitarTildes(string texto)
     {
-        var normalizedString = texto.Normalize(NormalizationForm.FormD);
-        var stringBuilder = new StringBuilder();
-        foreach (var c in normalizedString)
+        try
         {
-            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
-                stringBuilder.Append(c);
+            var normalizedString = texto.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder();
+
+            foreach (var c in normalizedString)
+            {
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+                    stringBuilder.Append(c);
+            }
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
         }
-        return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
-    }
-
-    // --- MÉTODO NUEVO: POR BLOQUES (CORREGIDO CON SINÓNIMOS) ---
-    public static List<string> ObtenerTokensPorBloques(string texto)
-    {
-        if (string.IsNullOrWhiteSpace(texto)) return new List<string>();
-
-        // 1. Decodificar y minúsculas
-        var limpio = System.Net.WebUtility.HtmlDecode(texto).ToLowerInvariant();
-        limpio = QuitarTildes(limpio);
-
-        // 2. Separar por CUALQUIER signo de puntuación común
-        // Agregamos punto (.), punto y coma (;), y saltos de línea (\n)
-        var bloques = limpio.Split(new[] { ',', '.', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-
-        var tokens = new List<string>();
-
-        foreach (var bloque in bloques)
-        {
-            // 3. Eliminar la etiqueta (lo que está antes del ':')
-            string contenido = bloque;
-            if (bloque.Contains(':'))
-            {
-                var partesBloque = bloque.Split(new[] { ':' }, 2);
-                if (partesBloque.Length > 1)
-                    contenido = partesBloque[1];
-            }
-
-            // 4. Limpieza: Quitamos comillas, paréntesis y caracteres raros
-            contenido = Regex.Replace(contenido, @"[^\w\s]", "").Trim();
-
-            // 5. Aplicar Sinónimos
-            var palabras = contenido.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            var palabrasCorregidas = new List<string>();
-
-            foreach (var p in palabras)
-            {
-                var termino = _sinonimos.ContainsKey(p) ? _sinonimos[p] : p;
-                palabrasCorregidas.Add(termino);
-            }
-
-            var contenidoFinal = string.Join(" ", palabrasCorregidas);
-
-            if (!string.IsNullOrWhiteSpace(contenidoFinal))
-            {
-                tokens.Add(contenidoFinal);
-            }
-        }
-
-        return tokens;
+        catch { return texto; }
     }
 }
