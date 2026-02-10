@@ -4,7 +4,8 @@ using COMPARARNOTAS.Services;
 namespace COMPARARNOTAS.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+   
+    [Route("api/examen")]
     public class ExamenController : ControllerBase
     {
         [HttpPost("comparar")]
@@ -28,11 +29,9 @@ namespace COMPARARNOTAS.Controllers
 
                 Console.WriteLine("📂 Extrayendo preguntas del estudiante...");
                 var preguntasEstudiante = ExtractorExamenes.ExtraerPreguntas(rutaRespuestas);
-                Console.WriteLine($"✅ Encontradas {preguntasEstudiante.Count} preguntas del estudiante");
 
                 Console.WriteLine("📂 Extrayendo preguntas clave...");
                 var preguntasClave = ExtractorExamenes.ExtraerPreguntas(rutaClave);
-                Console.WriteLine($"✅ Encontradas {preguntasClave.Count} preguntas clave");
 
                 if (!preguntasClave.Any())
                     return BadRequest(new { error = "No se encontraron preguntas en el archivo clave" });
@@ -41,15 +40,15 @@ namespace COMPARARNOTAS.Controllers
                 var resultado = ComparadorLinguistico.CompararExamenes(preguntasClave, preguntasEstudiante);
                 Console.WriteLine($"✅ Comparación completada");
 
-                System.IO.File.Delete(rutaRespuestas);
-                System.IO.File.Delete(rutaClave);
+                // Limpieza
+                if (System.IO.File.Exists(rutaRespuestas)) System.IO.File.Delete(rutaRespuestas);
+                if (System.IO.File.Exists(rutaClave)) System.IO.File.Delete(rutaClave);
 
                 return Ok(resultado);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ ERROR: {ex.Message}");
-                Console.WriteLine($"Stack: {ex.StackTrace}");
                 return StatusCode(500, new { error = ex.Message, detalle = ex.StackTrace });
             }
         }
